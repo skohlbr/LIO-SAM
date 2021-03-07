@@ -37,6 +37,7 @@
 
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
+#include <tf2_eigen/tf2_eigen.h>
  
 #include <vector>
 #include <cmath>
@@ -208,6 +209,7 @@ public:
     Eigen::Matrix3d extRPY;
     Eigen::Vector3d extTrans;
     Eigen::Quaterniond extQRPY;
+    Eigen::Affine3d imu_transform;
 
     // LOAM
     float edgeThreshold;
@@ -298,6 +300,8 @@ public:
         nh.param<float>("lio_sam/imuGyrBiasN", imuGyrBiasN, 0.00003);
         nh.param<float>("lio_sam/imuGravity", imuGravity, 9.80511);
         nh.param<float>("lio_sam/imuRPYWeight", imuRPYWeight, 0.01);
+
+        /*
         nh.param<vector<double>>("lio_sam/extrinsicRot", extRotV, vector<double>());
         nh.param<vector<double>>("lio_sam/extrinsicRPY", extRPYV, vector<double>());
         nh.param<vector<double>>("lio_sam/extrinsicTrans", extTransV, vector<double>());
@@ -305,6 +309,36 @@ public:
         extRPY = Eigen::Map<const Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>(extRPYV.data(), 3, 3);
         extTrans = Eigen::Map<const Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>(extTransV.data(), 3, 1);
         extQRPY = Eigen::Quaterniond(extRPY);
+        */
+
+        boost::shared_ptr<tf2_ros::Buffer> tf2_;
+        boost::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
+
+        tf2_.reset(new tf2_ros::Buffer());
+        tf2_listener_.reset(new tf2_ros::TransformListener(*tf2_));
+
+        try
+        {
+            geometry_msgs::TransformStamped transform = tf2_->lookupTransform(lidarFrame, "imu_link", ros::Time(0), ros::Duration(5.0));
+            //geometry_msgs::TransformStamped transform = tf2_->lookupTransform("imu_link", lidarFrame, ros::Time(0), ros::Duration(5.0));
+            //std::cout << "init_trans:\n" << transform << "\n";
+
+            imu_transform = tf2::transformToEigen(transform);
+
+            extTrans = Eigen::Vector3d(imu_transform.translation());
+            extRot = imu_transform.rotation();
+            extRPY = imu_transform.rotation();
+            extQRPY = Eigen::Quaterniond(imu_transform.rotation());
+
+            //std::cout << "imu trans\n" << imu_transform.matrix() << "\n";
+        }
+        catch (tf2::TransformException& ex)
+        {
+            ROS_ERROR("%s", ex.what());
+        }
+
+
+
 
         nh.param<float>("lio_sam/edgeThreshold", edgeThreshold, 0.1);
         nh.param<float>("lio_sam/surfThreshold", surfThreshold, 0.1);

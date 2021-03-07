@@ -199,16 +199,29 @@ public:
 
     int key = 1;
 
-    boost::shared_ptr<tf2_ros::Buffer> tf2_;
-    boost::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
+    //boost::shared_ptr<tf2_ros::Buffer> tf2_;
+    //boost::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
 
-    gtsam::Pose3 imu2Lidar;// = gtsam::Pose3(gtsam::Rot3(1, 0, 0, 0), gtsam::Point3(-extTrans.x(), -extTrans.y(), -extTrans.z()));
-    gtsam::Pose3 lidar2Imu;// = gtsam::Pose3(gtsam::Rot3(1, 0, 0, 0), gtsam::Point3(extTrans.x(), extTrans.y(), extTrans.z()));
+    //gtsam::Pose3 imu2Lidar = gtsam::Pose3(gtsam::Rot3(1, 0, 0, 0), gtsam::Point3(-extTrans.x(), -extTrans.y(), -extTrans.z()));
+    //gtsam::Pose3 lidar2Imu = gtsam::Pose3(gtsam::Rot3(1, 0, 0, 0), gtsam::Point3(extTrans.x(), extTrans.y(), extTrans.z()));
 
+    //gtsam::Pose3 imu2Lidar = gtsam::Pose3(gtsam::Rot3(extRot.inverse()), gtsam::Point3(-extTrans.x(), -extTrans.y(), -extTrans.z()));
+    //gtsam::Pose3 lidar2Imu = gtsam::Pose3(gtsam::Rot3(extRot), gtsam::Point3(extTrans.x(), extTrans.y(), extTrans.z()));
+
+    gtsam::Pose3 imu2Lidar;
+    gtsam::Pose3 lidar2Imu;
 
 
     IMUPreintegration()
     {
+      //Eigen::MatrixXd m (imu_transform.matrix());
+      //std::cout << "matrixxd:\n" << m << "\n";
+      imu2Lidar = gtsam::Pose3(imu_transform.inverse().matrix());
+      lidar2Imu = gtsam::Pose3(imu_transform.matrix());
+
+      imu2Lidar.print("imu2lidar");
+      lidar2Imu.print("lidar2Imu");
+      /*
       tf2_.reset(new tf2_ros::Buffer());
       tf2_listener_.reset(new tf2_ros::TransformListener(*tf2_));
 
@@ -227,6 +240,7 @@ public:
       {
           ROS_ERROR("%s", ex.what());
       }
+      */
 
         subImu      = nh.subscribe<sensor_msgs::Imu>  (imuTopic,                   2000, &IMUPreintegration::imuHandler,      this, ros::TransportHints().tcpNoDelay());
         subOdometry = nh.subscribe<nav_msgs::Odometry>("lio_sam/mapping/odometry_incremental", 5,    &IMUPreintegration::odometryHandler, this, ros::TransportHints().tcpNoDelay());
@@ -483,8 +497,12 @@ public:
     {
         std::lock_guard<std::mutex> lock(mtx);
 
-        sensor_msgs::Imu nonTransformedImu = *imu_raw;//imuConverter(*imu_raw);
+        sensor_msgs::Imu thisImu = imuConverter(*imu_raw);
+
+        /*
+        sensor_msgs::Imu nonTransformedImu = imuConverter(*imu_raw);
         sensor_msgs::Imu thisImu;
+
 
         try
         {
@@ -496,6 +514,7 @@ public:
         {
             ROS_ERROR("%s", ex.what());
         }
+        */
 
         imuQueOpt.push_back(thisImu);
         imuQueImu.push_back(thisImu);

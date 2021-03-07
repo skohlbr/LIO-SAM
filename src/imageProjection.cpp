@@ -149,7 +149,10 @@ public:
 
     void imuHandler(const sensor_msgs::Imu::ConstPtr& imuMsg)
     {
-        sensor_msgs::Imu nonTransformedImu = *imuMsg;
+        sensor_msgs::Imu thisImu = imuConverter(*imuMsg);
+
+        /*
+        sensor_msgs::Imu nonTransformedImu = imuConverter(*imuMsg);
         sensor_msgs::Imu thisImu;
 
         try
@@ -160,6 +163,7 @@ public:
         {
             ROS_ERROR("%s", ex.what());
         }
+        */
 
         std::lock_guard<std::mutex> lock1(imuLock);
         imuQueue.push_back(thisImu);
