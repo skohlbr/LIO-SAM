@@ -149,7 +149,7 @@ public:
 
     void imuHandler(const sensor_msgs::Imu::ConstPtr& imuMsg)
     {
-        sensor_msgs::Imu nonTransformedImu = imuConverter(*imuMsg);
+        sensor_msgs::Imu nonTransformedImu = *imuMsg;
         sensor_msgs::Imu thisImu;
 
         try

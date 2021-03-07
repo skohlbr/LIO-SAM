@@ -202,11 +202,32 @@ public:
     boost::shared_ptr<tf2_ros::Buffer> tf2_;
     boost::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
 
-    gtsam::Pose3 imu2Lidar = gtsam::Pose3(gtsam::Rot3(1, 0, 0, 0), gtsam::Point3(-extTrans.x(), -extTrans.y(), -extTrans.z()));
-    gtsam::Pose3 lidar2Imu = gtsam::Pose3(gtsam::Rot3(1, 0, 0, 0), gtsam::Point3(extTrans.x(), extTrans.y(), extTrans.z()));
+    gtsam::Pose3 imu2Lidar;// = gtsam::Pose3(gtsam::Rot3(1, 0, 0, 0), gtsam::Point3(-extTrans.x(), -extTrans.y(), -extTrans.z()));
+    gtsam::Pose3 lidar2Imu;// = gtsam::Pose3(gtsam::Rot3(1, 0, 0, 0), gtsam::Point3(extTrans.x(), extTrans.y(), extTrans.z()));
+
+
 
     IMUPreintegration()
     {
+      tf2_.reset(new tf2_ros::Buffer());
+      tf2_listener_.reset(new tf2_ros::TransformListener(*tf2_));
+
+      try
+      {
+          geometry_msgs::TransformStamped transform = tf2_->lookupTransform(lidarFrame, "imu_link", ros::Time(0), ros::Duration(5.0));
+          std::cout << "init_trans:\n" << transform << "\n";
+
+          const geometry_msgs::Vector3& extTransVec = transform.transform.translation;
+
+          imu2Lidar = gtsam::Pose3(gtsam::Rot3(1, 0, 0, 0), gtsam::Point3(-extTransVec.x, -extTransVec.y, -extTransVec.z));
+          lidar2Imu = gtsam::Pose3(gtsam::Rot3(1, 0, 0, 0), gtsam::Point3(extTransVec.x, extTransVec.y, extTransVec.z));
+
+      }
+      catch (tf2::TransformException& ex)
+      {
+          ROS_ERROR("%s", ex.what());
+      }
+
         subImu      = nh.subscribe<sensor_msgs::Imu>  (imuTopic,                   2000, &IMUPreintegration::imuHandler,      this, ros::TransportHints().tcpNoDelay());
         subOdometry = nh.subscribe<nav_msgs::Odometry>("lio_sam/mapping/odometry_incremental", 5,    &IMUPreintegration::odometryHandler, this, ros::TransportHints().tcpNoDelay());
 
@@ -228,8 +249,7 @@ public:
         imuIntegratorImu_ = new gtsam::PreintegratedImuMeasurements(p, prior_imu_bias); // setting up the IMU integration for IMU message thread
         imuIntegratorOpt_ = new gtsam::PreintegratedImuMeasurements(p, prior_imu_bias); // setting up the IMU integration for optimization
 
-        tf2_.reset(new tf2_ros::Buffer());
-        tf2_listener_.reset(new tf2_ros::TransformListener(*tf2_));        
+
     }
 
     void resetOptimization()
@@ -463,12 +483,14 @@ public:
     {
         std::lock_guard<std::mutex> lock(mtx);
 
-        sensor_msgs::Imu nonTransformedImu = imuConverter(*imu_raw);
+        sensor_msgs::Imu nonTransformedImu = *imu_raw;//imuConverter(*imu_raw);
         sensor_msgs::Imu thisImu;
 
         try
         {
             tf2_->transform(nonTransformedImu, thisImu, lidarFrame);
+            geometry_msgs::TransformStamped transform = tf2_->lookupTransform(lidarFrame,imu_raw->header.frame_id, ros::Time(0));
+            std::cout << "lookup_trans:\n" << transform << "\n";
         }
         catch (tf2::TransformException& ex)
         {

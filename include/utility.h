@@ -99,6 +99,7 @@ namespace tf2
   inline
   void doTransform(const sensor_msgs::Imu &imu_in, sensor_msgs::Imu &imu_out, const geometry_msgs::TransformStamped& t_in)
   {
+    std::cout << "t_in_trans:\n" << t_in << "\n";
 
     imu_out.header = t_in.header;
 
