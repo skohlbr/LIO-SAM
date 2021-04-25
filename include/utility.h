@@ -378,6 +378,8 @@ public:
     sensor_msgs::Imu imuConverter(const sensor_msgs::Imu& imu_in)
     {
         sensor_msgs::Imu imu_out = imu_in;
+
+        //std::cout << "extRot\n" << extRot << "\n";
         // rotate acceleration
         Eigen::Vector3d acc(imu_in.linear_acceleration.x, imu_in.linear_acceleration.y, imu_in.linear_acceleration.z);
         acc = extRot * acc;
@@ -397,6 +399,21 @@ public:
         imu_out.orientation.y = q_final.y();
         imu_out.orientation.z = q_final.z();
         imu_out.orientation.w = q_final.w();
+
+        /*
+        imu_out.linear_acceleration.x = 0.0;
+        imu_out.linear_acceleration.y = 0.0;
+        imu_out.linear_acceleration.z = 9.81;
+        // rotate gyroscope
+        imu_out.angular_velocity.x = 0.0;
+        imu_out.angular_velocity.y = 0.0;
+        imu_out.angular_velocity.z = 0.0;
+        // rotate roll pitch yaw
+        imu_out.orientation.x = 0.0;
+        imu_out.orientation.y = 0.0;
+        imu_out.orientation.z = 0.0;
+        imu_out.orientation.w = 1.0;
+        */
 
         if (sqrt(q_final.x()*q_final.x() + q_final.y()*q_final.y() + q_final.z()*q_final.z() + q_final.w()*q_final.w()) < 0.1)
         {

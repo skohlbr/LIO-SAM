@@ -162,6 +162,7 @@ public:
     ros::Subscriber subImu;
     ros::Subscriber subOdometry;
     ros::Publisher pubImuOdometry;
+    ros::Publisher pubImuTrans;
 
     bool systemInitialized = false;
 
@@ -219,8 +220,8 @@ public:
       imu2Lidar = gtsam::Pose3(imu_transform.inverse().matrix());
       lidar2Imu = gtsam::Pose3(imu_transform.matrix());
 
-      imu2Lidar.print("imu2lidar");
-      lidar2Imu.print("lidar2Imu");
+      //imu2Lidar.print("imu2lidar");
+      //lidar2Imu.print("lidar2Imu");
       /*
       tf2_.reset(new tf2_ros::Buffer());
       tf2_listener_.reset(new tf2_ros::TransformListener(*tf2_));
@@ -246,6 +247,7 @@ public:
         subOdometry = nh.subscribe<nav_msgs::Odometry>("lio_sam/mapping/odometry_incremental", 5,    &IMUPreintegration::odometryHandler, this, ros::TransportHints().tcpNoDelay());
 
         pubImuOdometry = nh.advertise<nav_msgs::Odometry> (odomTopic+"_incremental", 2000);
+        pubImuTrans    = nh.advertise<sensor_msgs::Imu>  ("lio_sam/imu/transformed_to_lidar", 1);
 
         boost::shared_ptr<gtsam::PreintegrationParams> p = gtsam::PreintegrationParams::MakeSharedU(imuGravity);
         p->accelerometerCovariance  = gtsam::Matrix33::Identity(3,3) * pow(imuAccNoise, 2); // acc white noise in continuous
@@ -346,6 +348,7 @@ public:
             graphValues.clear();
 
             imuIntegratorImu_->resetIntegrationAndSetBias(prevBias_);
+            prevBias_.print();
             imuIntegratorOpt_->resetIntegrationAndSetBias(prevBias_);
             
             key = 1;
@@ -432,6 +435,7 @@ public:
         prevState_ = gtsam::NavState(prevPose_, prevVel_);
         prevBias_  = result.at<gtsam::imuBias::ConstantBias>(B(key));
         // Reset the optimization preintegration object.
+        prevBias_.print();
         imuIntegratorOpt_->resetIntegrationAndSetBias(prevBias_);
         // check optimization
         if (failureDetection(prevVel_, prevBias_))
@@ -507,7 +511,7 @@ public:
         try
         {
             tf2_->transform(nonTransformedImu, thisImu, lidarFrame);
-            geometry_msgs::TransformStamped transform = tf2_->lookupTransform(lidarFrame,imu_raw->header.frame_id, ros::Time(0));
+            geometry_msgs::TransformStamped transform = tf2_->(lidarFrame,imu_raw->header.frame_id, ros::Time(0));
             std::cout << "lookup_trans:\n" << transform << "\n";
         }
         catch (tf2::TransformException& ex)
@@ -515,6 +519,12 @@ public:
             ROS_ERROR("%s", ex.what());
         }
         */
+
+        if (pubImuTrans.getNumSubscribers() > 0){
+          thisImu.header.frame_id = lidarFrame;
+          thisImu.header.stamp = imu_raw->header.stamp;
+          pubImuTrans.publish(thisImu);
+        }
 
         imuQueOpt.push_back(thisImu);
         imuQueImu.push_back(thisImu);
